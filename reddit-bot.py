@@ -1,22 +1,41 @@
-# Reddit is not allowing the registration request, still working on a fix (connection closed by remotehost)
+import undetected_chromedriver as uc
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.common.proxy import Proxy, ProxyType
 import requests
-import random
-import time
-import json
-from urllib.parse import urlencode
+import os
 import re
-import pytest
 import string
-import nopecha
-from bs4 import BeautifulSoup
-import ssl
-import threading
-from anticaptchaofficial.recaptchav2proxyless import *
+import time
+import random
+import json
+from lxml.html import fromstring
+from random import randint, uniform, shuffle, choice
+from password_generator import PasswordGenerator
+from selenium_stealth import stealth
 from faker import Faker
+from fake_headers import Headers
+import platform
+import threading
 
-ssl.PROTOCOL_TLS = ssl.PROTOCOL_TLSv1_2
 password_length = 12
 characters = string.ascii_letters + string.digits + string.punctuation
+
+def Type(element: WebElement, text: str):
+    for character in text:
+        element.send_keys(character)
+        time.sleep(uniform(.07, .15))
+
+def Type_Slow(element: WebElement, text: str):
+    for character in text:
+        element.send_keys(character)
+        time.sleep(uniform(.1, .3))
+
+def randsleep(minimum=0.5, maximum=1.3):
+    time.sleep(uniform(minimum, maximum))
 
 def register():
     fake = Faker()
@@ -36,72 +55,64 @@ def register():
     print(email)
     #print(token)
 
-    proxy_host = 'proxyip'
-    proxy_port = proxyport
-    proxy_username = 'username'
-    proxy_password = 'password'
+    path = os.path.dirname('./NopeCHA-CAPTCHA-Solver/manifest.json')
+    options = uc.ChromeOptions()
+    options.add_argument('--disable-popup-blocking')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--disable-web-security')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--log-level=3')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    #options.add_argument(f'--user-agent={agent}')
+    options.add_argument(f"--load-extension={path}")
+    options.add_argument('--screen-size=20000x10000')
 
-    # Captchasolver
-    solver = recaptchaV2Proxyless()
-    solver.set_verbose(1)
-    solver.set_key("YOURAPIKEY")
-    solver.set_website_url("https://www.reddit.com/register")
-    solver.set_website_key("6LeTnxkTAAAAAN9QEuDZRpn90WwKk_R1TRW_g-JC")
+    driver = uc.Chrome(options=options, headless=False)
+    driver.delete_all_cookies()
 
-    # Request to get the CSRF TOKEN
-    response = requests.get('https://www.reddit.com/account/register/', proxies={"http": f"http://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}"})
-    print(response.status_code)
-    # Extract CSRF TOKEN
-    soup = BeautifulSoup(response.content, 'html.parser')
-    csrf_token = soup.find('input', {'name': 'csrf_token'})['value']
-    print(csrf_token)  
+    stealth(driver,
+        languages=["en-US", "en"],
+        vendor="Google Inc.",
+        platform="Win32",
+        webgl_vendor="Intel Inc.",
+        renderer="Intel Iris OpenGL Engine",
+        fix_hairline=True,
+    )
 
-    solver.set_soft_id(0)
+    driver.get('https://reddit.com/register')
 
-    g_response = solver.solve_and_return_solution()
-    if g_response != 0:
-        print("g-response: "+g_response)
-    else:
-        print("")
-
-    # Loop until captcha is solved
-    while g_response == 0:
-        time.sleep(5)
-        g_response = solver.solve_and_return_solution()
-
-    session = requests.Session()
-    session.proxies = {
-        "http": f"http://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}",
-        "https": f"http://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}",
-    }
-
-    url = "https://www.reddit.com/register"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/112.0",
-        "Accept": "*/*",
-        "Accept-Language": "de,en-US;q=0.7,en;q=0.3",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Origin": "https://www.reddit.com",
-        "DNT": "1",
-        "Connection": "keep-alive",
-        "Referer": "https://www.reddit.com/account/register/?dest=https%3A%2F%2Fwww.reddit.com%2F%3FnewUser%3Dtrue%26signup_survey%3Dtrue"
-    }
-
-    data = {
-        'csrf_token': csrf_token,
-        'g-recaptcha-response': g_response,
-        'password': password,
-        'dest': "https://www.reddit.com/?newUser=true&signup_survey=true",
-        'email_permission': "false",
-        'lang': "de-DE",
-        'username': username,
-        'email': email
-    }
-
-    response = session.post(url, headers=headers, data=data, proxies=session.proxies)
+    # Enter the email address and click the button
+    fields = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="regEmail"]')))
+    Type(fields, email)
+    randsleep()
+    button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '/html/body/div/main/div[1]/div/div[2]/form/fieldset[3]/button')))
+    button.click()
+    fields = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="regUsername"]')))
+    randsleep()
+    Type(fields, username)
+    randsleep()
+    fields = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="regPassword"]')))
+    randsleep()
+    Type(fields, password)
+    time.sleep(10)
+    # Sleep until this element is not visible (It's broken code, need to fix)
+    while True:
+        try:
+            fields = WebDriverWait(driver, 1).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="rc-imageselect"]')))
+            randsleep()
+            Type(fields, password)
+            break
+        except:
+            break
+    button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '/html/body/div[1]/main/div[2]/div/div/div[3]/button')))
+    randsleep()
+    button.click()
     time.sleep(5)
-
+    driver.get('PATH TO A COMMENT')
+    time.sleep(5)
+    button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="vote-arrows-t1_PUTYOURCOMMENTIDHERE"]/button[1]'))) # Need to change the comment/post id, if you want to upvote something
+    button.click()
+    randsleep()
 threads = []
 while True:
     for i in range(1):
